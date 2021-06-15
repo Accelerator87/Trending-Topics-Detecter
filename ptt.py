@@ -11,8 +11,8 @@ import tkinter as tk
 from tkinter import *
 import time
 
-ny = int(time.strftime("%Y", time.localtime()))
-nm = int(time.strftime("%m", time.localtime()))
+ny = int(time.strftime("%Y",  time.localtime()))
+nm = int(time.strftime("%m",  time.localtime()))
 ndy = int(time.strftime("%d", time.localtime()))
 
 win = tk.Tk()
@@ -57,7 +57,6 @@ warnings.filterwarnings("ignore")
 requests.packages.urllib3.disable_warnings()
 rs = requests.session()
 stock_name, time_st, time_ed, per_start, per, cnt_min, result_range = "","","","",0,0,0
-start_time = 0
 
 #-------------------------------------------over18-----------------------------------------#
 
@@ -152,11 +151,10 @@ def cos_sita(x,y):
 def get_result():
     
 
-    std = 0.8
+    std = 0.92
     topicslist,topics_cnt = [],{}
     topics = {}
 
-    print("\nexecution time:" + str(time.time() - start_time) + "s")
     print("getting topicslist...")
     print("quantity of word:",len(word_cnt))
 
@@ -198,49 +196,66 @@ def get_result():
         newID = len(topicslist)-1
         topics_cnt[newID] = topics_cnt.get(newID,np.array(word_cnt[word]))
         
-    print("\nexecution time:" + str(time.time() - start_time) + "s")
     print("sorting...")
 
     topic_rk = [[-1,-1,-1,-1]]*result_range
+    timerange = len(topics_cnt[0])
+    
     for i in topics:
         if len(topics[i]) <= 3:
             continue
-        start,end,hightime,m = 0,0,0,0.0
-        tmp = np.diff(topics_cnt[i])
-        tmpp = tmp.tolist()
-        hightime = tmpp.index(max(tmpp))
         
-        prev_cnt = max(topics_cnt[i])
-        for j in range(hightime+1,0,-1):
-            if topics_cnt[i][j] <= prev_cnt:
-                prev_cnt = topics_cnt[i][j]
-            else:
-                start = j+1
-                break
-        for j in range(hightime+1,len(topics_cnt[i]),1):
-            if topics_cnt[i][j] < topics_cnt[i][hightime+1]/2:
-                end = j
-                break
-            if j == len(topics_cnt[i])-1:
-                end = -1
-        m = float(topics_cnt[i][hightime+1])/float(hightime+1-start)
-    
-        for j in range(result_range-1,-1,-1):
-            if j == 0:
-                topic_rk.insert(j,[m,start,end,i])
-                topic_rk.pop()
-                break
+        m,start,end = -1.0,0,0
+        for window in range(1,timerange+1):
+            for j in range(0,timerange):
+                
+                cnt,check = 0,False
+                for size in range(0,window):
+                    if j+size >= timerange:
+                        check = True
+                        break
+                    else:
+                        cnt += topics_cnt[i][j+size]
+                if check:
+                    break
+                
+                m_tmp,start_tmp,end_tmp = 0.0,0,0
+                for k in range(j+window-1,timerange):
+                    if topics_cnt[i][k] < cnt/2:
+                        end_tmp = k
+                        break
+                    if k == timerange-1:
+                        end_tmp = -1
+                        break
+                for k in range(j+window-1,-1,-1):
+                    if topics_cnt[i][k] < cnt/2:
+                        start_tmp = k
+                        break
+                    if k == 0:
+                        start_tmp = -1
+                        break
+                    
+                m_tmp = float(cnt)/float(window)
+                if m == -1.0 or m <= m_tmp:
+                    m = m_tmp
+                    start = start_tmp
+                    end = end_tmp
+                    
+        for j in range(4,-1,-1):
             if topic_rk[j][0] >= m:
                 topic_rk.insert(j+1,[m,start,end,i])
                 topic_rk.pop()
                 break
+            if j == 0:
+                topic_rk.insert(j,[m,start,end,i])
+                topic_rk.pop()
+                break
     
-    print("\nexecution time:" + str(time.time() - start_time) + "s")
     print("drawing chart...\n")
     print("--------------")
 
     rank = 1
-    x = [i for i in range(0,len(topics_cnt[0]))]
+    x = [i for i in range(0,timerange)]
     plt.xticks(x)
     color = ["#CC3333","#000000","#FFFF00","#228b22","#6699CC",
              "#336699","#000066","#663366","#009966","#99CC33"]
@@ -254,13 +269,17 @@ def get_result():
             words += ixXword[word] + " "
         print("rank:",rank)
         print(words)
-        if topic[2] != -1:
-            print("from",topic[1],"to",topic[2])
-        else:
+        if topic[2] == -1 and topic[1] == -1:
+            print("### couldn't find starting time and ending time ###")
+        elif topic[2] == -1:
             print("from",topic[1],"  ### couldn't find ending time ###")
+        elif topic[1] == -1:
+            print("### couldn't find starting time ###  ","to",topic[2])
+        else:
+            print("from",topic[1],"to",topic[2])
 
         y = topics_cnt[topic[3]]
-        a ,= plt.plot(y,"-.",color=color[rank-1],label="rank: "+str(rank))
+        a ,= plt.plot(y,"-",color=color[rank-1],label="rank: "+str(rank))
         data.append(a)
         rank += 1
 
@@ -332,11 +351,13 @@ def get_info(link):
         nowtime += 1
         push_tmp = ""
         per_start = time_tmp
+    
+    print(time_tmp)
 
 #--------------------------------------------send------------------------------------------#
 
 def send():
-    global stock_name,file_name,time_st,time_ed,cnt_min,result_range,per,per_start,start_time
+    global stock_name,file_name,time_st,time_ed,cnt_min,result_range,per,per_start
     
     tv1 = int(ssbm.get())
     tv2 = str(ssbd.get())
@@ -364,7 +385,6 @@ def send():
     time_st = time_form_change(time_st)
     time_ed = time_form_change(time_ed)
     per_start = time_st
-    start_time = time.time()
     soup = over18(stock_name)
     all_href = soup.select(".btn.wide")[1]["href"]
     all_page = int(get_page_number(all_href)) + 2
@@ -386,7 +406,6 @@ def send():
     plt.savefig(file_name+".png")
     
     print("--------------\n")
-    print("execution time:" + str(time.time() - start_time) + "s")
 
 
 monList = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
