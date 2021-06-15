@@ -10,7 +10,7 @@
 
 ## 使用步驟
 1. 先以以下指令下載一個叫做 jieba 的 Python Package 。
-```
+```python=
 pip install jieba
 ```
 2. 下載ptt.py及stopwords.txt，並放在同一個資料夾中。
