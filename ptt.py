@@ -150,8 +150,7 @@ def cos_sita(x,y):
 
 def get_result():
     
-
-    std = 0.92
+    std = 0.8
     topicslist,topics_cnt = [],{}
     topics = {}
 
@@ -241,7 +240,7 @@ def get_result():
                     start = start_tmp
                     end = end_tmp
                     
-        for j in range(4,-1,-1):
+        for j in range(result_range-1,-1,-1):
             if topic_rk[j][0] >= m:
                 topic_rk.insert(j+1,[m,start,end,i])
                 topic_rk.pop()
